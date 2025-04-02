@@ -40,7 +40,7 @@ A comprehensive Natural Language Processing (NLP) project that implements text c
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/NLP_project.git
+git clone https://github.com/Ethan-LWT/NLP_project.git
 cd NLP_project
 ```
 
