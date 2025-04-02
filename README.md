@@ -381,6 +381,102 @@ python main.py --mode create_dataset --common_crawl \
                --output_dir multilingual_dataset
 ```
 
+## Complete Workflow
+
+The complete workflow of this NLP project is illustrated in the diagram below, showing how the various components interact:
+
+```mermaid
+graph TD
+    %% Main Entry Points
+    A[main.py] --> B1[Dataset Creation]
+    A --> B2[Model Training]
+    A --> B3[Prediction]
+    A --> B4[Visualization]
+    
+    %% Dataset Creation Path
+    B1 --> |Option 1| C1[Local WARC Files]
+    B1 --> |Option 2| C2[Common Crawl]
+    C1 --> D1[text_cleaning.py]
+    C2 --> D1
+    D1 --> E1[content_quality.py]
+    E1 --> F1[dataset_builder.py]
+    
+    %% Model Training Path
+    B2 --> C3[load_textdata.py]
+    C3 --> D2[text_vectorization.py]
+    D2 --> E2[performance_analysis.py]
+    E2 --> F2[train_model.py]
+    F2 --> G1[model_builder.py]
+    G1 --> H1[neural_network.py]
+    H1 --> I1[optimization.py]
+    
+    %% Prediction Path
+    B3 --> C4[load_textdata.py]
+    C4 --> D3[predict.py]
+    D3 --> E3[neural_network.py]
+    
+    %% Visualization Path
+    B4 --> C5[visualize_network.py]
+    
+    %% GPU Utilities
+    J[gpu_utils.py] --> B2
+    J --> B3
+    J --> B4
+    
+    %% Dataset Bridge
+    K[dataset_bridge.py] --> B1
+    K --> B2
+    
+    %% Feature Highlights
+    style A fill:#f9d77e,stroke:#f9bc02,stroke-width:2px
+    style B1 fill:#a7c7e7,stroke:#4a86e8,stroke-width:2px
+    style B2 fill:#a7c7e7,stroke:#4a86e8,stroke-width:2px
+    style B3 fill:#a7c7e7,stroke:#4a86e8,stroke-width:2px
+    style B4 fill:#a7c7e7,stroke:#4a86e8,stroke-width:2px
+    style E1 fill:#c9daf8,stroke:#4a86e8,stroke-width:1px
+    style E2 fill:#c9daf8,stroke:#4a86e8,stroke-width:1px
+    style I1 fill:#d5a6bd,stroke:#a64d79,stroke-width:1px
+    style J fill:#d5a6bd,stroke:#a64d79,stroke-width:1px
+```
+
+### Workflow Explanation
+
+1. **Dataset Creation**
+   - Starts with either local WARC files or Common Crawl data acquisition
+   - Processes through text cleaning and content quality analysis
+   - Builds structured datasets ready for model training
+
+2. **Model Training**
+   - Loads text data and performs vectorization
+   - Analyzes dataset performance and quality
+   - Trains the selected model type (classifier or seq2seq)
+   - Uses the appropriate neural network architecture
+   - Applies optimization techniques (Lion optimizer, AMP)
+
+3. **Prediction**
+   - Loads the trained model
+   - Processes input text through the same vectorization pipeline
+   - Generates predictions using the trained model
+
+4. **Visualization**
+   - Creates visual representations of the neural network
+   - Visualizes training progress and model architecture
+
+### Combined Workflow
+
+The project supports an end-to-end workflow that combines these components:
+
+1. **Data Acquisition** → Common Crawl or local WARC files
+2. **Data Processing** → Text extraction, cleaning, quality analysis
+3. **Dataset Creation** → Building structured training/testing datasets
+4. **Quality Analysis** → Analyzing and improving dataset quality
+5. **Model Training** → Vectorization, training with GPU acceleration
+6. **Model Evaluation** → Testing performance on held-out data
+7. **Model Deployment** → Saving models for later use in prediction
+8. **Prediction** → Using trained models to classify new text or generate sequences
+
+This unified workflow can be executed with a single command using the `--create_and_train` option, which handles everything from data acquisition to model training automatically.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
