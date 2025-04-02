@@ -81,7 +81,7 @@ class TextVectorizer:
         self.use_gpu = use_gpu and (TORCH_AVAILABLE or CUPY_AVAILABLE)
         
         # Determine optimal number of CPU workers
-        self.num_workers = max(1, multiprocessing.cpu_count() - 1)
+        self.num_workers = max(1, multiprocessing.cpu_count())
         print(f"Using {self.num_workers} CPU workers for parallel processing")
         
     def build_vocabulary(self, texts):
