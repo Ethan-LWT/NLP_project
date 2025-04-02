@@ -467,10 +467,6 @@ The project supports an end-to-end workflow that combines these components:
 
 This unified workflow can be executed with a single command using the `--create_and_train` option, which handles everything from data acquisition to model training automatically.
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
