@@ -429,10 +429,10 @@ graph TD
     
     %% Feature Highlights
     style A fill:#f9d77e,stroke:#f9bc02,stroke-width:2px
-    style B1 fill:#a7c7e7,stroke:#4a86e8,stroke-width:2px
-    style B2 fill:#a7c7e7,stroke:#4a86e8,stroke-width:2px
-    style B3 fill:#a7c7e7,stroke:#4a86e8,stroke-width:2px
-    style B4 fill:#a7c7e7,stroke:#4a86e8,stroke-width:2px
+    style B1 fill:#f9bc02,stroke:#4a86e8,stroke-width:2px
+    style B2 fill:#f9bc02,stroke:#4a86e8,stroke-width:2px
+    style B3 fill:#f9bc02,stroke:#4a86e8,stroke-width:2px
+    style B4 fill:#f9bc02,stroke:#4a86e8,stroke-width:2px
     style E1 fill:#c9daf8,stroke:#4a86e8,stroke-width:1px
     style E2 fill:#c9daf8,stroke:#4a86e8,stroke-width:1px
     style I1 fill:#d5a6bd,stroke:#a64d79,stroke-width:1px
