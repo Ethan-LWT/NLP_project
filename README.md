@@ -15,14 +15,6 @@ A comprehensive Natural Language Processing (NLP) project that implements text c
 - Automatic mixed-precision (AMP) training for faster processing
 - Lion optimizer implementation for improved convergence
 
-## System Requirements
-
-- **OS**: Windows 10/11
-- **CPU**: AMD 3700X or equivalent
-- **RAM**: 64GB DDR4 3466MHz (recommended)
-- **GPU**: NVIDIA RTX4060 + GT1030 (optimized for dual GPU setup)
-- **Storage**: 1TB SSD
-
 ## Dependencies
 
 - Python 3.11.4+
