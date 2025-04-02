@@ -1,0 +1,9 @@
+# .gitignore file
+
+# Ignore the following folders
+/node_modules/
+/logs/
+/temp/
+/__pycache__/
+/.vscode/
+/models/
