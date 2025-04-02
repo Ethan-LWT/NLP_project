@@ -433,10 +433,10 @@ graph TD
     style B2 fill:#f9d77e,stroke:#f9bc02,stroke-width:2px
     style B3 fill:#f9d77e,stroke:#f9bc02,stroke-width:2px
     style B4 fill:#f9d77e,stroke:#f9bc02,stroke-width:2px
-    style E1 fill:#c9daf8,stroke:#a64d79,stroke-width:1px
-    style E2 fill:#c9daf8,stroke:#a64d79,stroke-width:1px
-    style I1 fill:#d5a6bd,stroke:#a64d79,stroke-width:1px
-    style J fill:#d5a6bd,stroke:#a64d79,stroke-width:1px
+    style E1 fill:#f9d77e,stroke:#f9bc02,stroke-width:1px
+    style E2 fill:#f9d77e,stroke:#f9bc02,stroke-width:1px
+    style I1 fill:#f9d77e,stroke:#f9bc02,stroke-width:1px
+    style J fill:#f9d77e,stroke:#f9bc02,stroke-width:1px
 ```
 
 ### Workflow Explanation
