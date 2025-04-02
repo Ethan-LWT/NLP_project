@@ -148,10 +148,19 @@ def clean_text(input_file, deep_clean=False, output_file=None):
         Cleaned text if output_file is None, otherwise None
     """
     try:
-        # Read the input file
-        with io.open(input_file, 'r', encoding='utf-8', errors='replace') as f:
-            text = f.read()
+        # Handle both file paths and direct text input
+        if isinstance(input_file, str) and os.path.exists(input_file):
+            # Read the input file
+            with io.open(input_file, 'r', encoding='utf-8', errors='replace') as f:
+                text = f.read()
+        else:
+            # Treat input_file as a text string
+            text = input_file
             
+        # Detect language to apply language-specific cleaning
+        lang_info = detect_language(text[:10000])
+        language = lang_info.get('language', 'unknown')
+        
         # Apply standard cleaning
         # Remove excessive whitespace
         cleaned_text = re.sub(r'\s+', ' ', text)
@@ -159,6 +168,9 @@ def clean_text(input_file, deep_clean=False, output_file=None):
         # Remove URLs
         cleaned_text = re.sub(r'https?://\S+', '', cleaned_text)
         cleaned_text = re.sub(r'www\.\S+', '', cleaned_text)
+        
+        # Remove HTML entities
+        cleaned_text = re.sub(r'&[a-z]+;', ' ', cleaned_text)
         
         # Remove very short lines (likely noise)
         lines = cleaned_text.split('\n')
@@ -192,8 +204,27 @@ def clean_text(input_file, deep_clean=False, output_file=None):
                 # Skip lines that are mostly numbers
                 if sum(1 for c in line if c.isdigit()) > len(line) * 0.5:
                     continue
+                # Skip lines that look like test options
+                if re.match(r'^[A-D][\s.、:：]+', line):
+                    continue
+                # Skip question numbers
+                if re.match(r'^\d+[\s.、:：]+', line) and len(line) < 30:
+                    continue
+                # Skip lines with exam terminology
+                if any(term in line.lower() for term in ['点击查看答案', '上一题', '下一题', '目录', '登录', '注册', '版权所有']):
+                    continue
                 filtered_lines.append(line)
             cleaned_text = '\n'.join(filtered_lines)
+            
+            # Apply enhanced web page cleaning to remove boilerplate
+            cleaned_text = remove_web_boilerplate(cleaned_text)
+            
+            # Apply language-specific cleaning
+            if language in ['zh', 'ja', 'ko']:
+                cleaned_text = clean_cjk_text(cleaned_text, language)
+            
+            # Apply document structure cleaning
+            cleaned_text = clean_document_structure(cleaned_text)
         
         # Save to output file if specified
         if output_file:
@@ -208,6 +239,231 @@ def clean_text(input_file, deep_clean=False, output_file=None):
         if not output_file:
             return text  # Return original text if cleaning failed
         return None
+
+def clean_document_structure(text):
+    """
+    Clean document structure by removing headers, footers, 
+    redundant section markers, and standardizing formatting.
+    
+    Args:
+        text: Text to clean
+        
+    Returns:
+        Cleaned text
+    """
+    # Split into lines for processing
+    lines = text.split('\n')
+    cleaned_lines = []
+    
+    # Remove document markup/headers
+    in_header = False
+    doc_count = 0
+    
+    for line in lines:
+        # Skip document delimiter lines
+        if re.match(r'^-{5,}$', line.strip()):
+            continue
+            
+        # Skip document headers
+        if re.match(r'^#\s*Document\s+\d+', line):
+            in_header = True
+            doc_count += 1
+            continue
+            
+        # Reset header flag when we encounter non-empty content
+        if in_header and line.strip():
+            in_header = False
+            
+        # Skip headers/footers but keep content
+        if not in_header:
+            cleaned_lines.append(line)
+    
+    # If we found document headers, we should reassemble without them
+    if doc_count > 0:
+        # Join the lines but remove excessive newlines
+        text = '\n'.join(cleaned_lines)
+        # Clean up excess blank lines
+        text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    # Remove boilerplate phrases at beginning/end
+    text = re.sub(r'^(欢迎来到|Welcome to|首页|Home page).*?\n', '', text)
+    text = re.sub(r'\n.*(版权所有|Copyright|All Rights Reserved).*?$', '', text)
+    
+    return text
+
+def clean_cjk_text(text, language):
+    """
+    Apply language-specific cleaning for Chinese, Japanese, and Korean text.
+    
+    Args:
+        text: Text to clean
+        language: Language code ('zh', 'ja', or 'ko')
+        
+    Returns:
+        Cleaned text with language-specific processing
+    """
+    # For Chinese
+    if language == 'zh':
+        # Remove common Chinese web elements
+        text = re.sub(r'点击查看', '', text)
+        text = re.sub(r'上一题|下一题', '', text)
+        text = re.sub(r'登录\s*[&\s]*注册', '', text)
+        
+        # Clean up multiple choice artifacts
+        text = re.sub(r'[ABCD][\s.、:：]+', '', text)
+        
+        # Remove URLs and references
+        text = re.sub(r'https?://\S+', '', text)
+        text = re.sub(r'\[\d+\]', '', text)
+        
+        # Remove exam terminology
+        text = re.sub(r'单项选择题|多项选择题|判断题', '', text) 
+        text = re.sub(r'参考答案|正确答案|答案解析', '', text)
+        text = re.sub(r'在线考试题库网', '', text)
+        text = re.sub(r'备案号.*ICP', '', text)
+        
+        # Remove superfluous website text
+        text = re.sub(r'欢迎来到.*网站', '', text)
+        text = re.sub(r'关注.*顶部', '', text)
+        
+    # For Japanese
+    elif language == 'ja':
+        # Remove Japanese-specific web elements
+        text = re.sub(r'ログイン|登録', '', text)
+        
+    # For Korean
+    elif language == 'ko':
+        # Remove Korean-specific web elements
+        text = re.sub(r'로그인|가입', '', text)
+    
+    # Normalize whitespace (language agnostic)
+    text = re.sub(r'\s+', ' ', text)
+    
+    return text
+
+def remove_web_boilerplate(text):
+    """
+    Remove common web page boilerplate like navigation, footers, etc.
+    
+    Args:
+        text: Text to clean
+        
+    Returns:
+        Cleaned text
+    """
+    # Common patterns for web boilerplate
+    boilerplate_patterns = [
+        # Navigation and menu items
+        r'^\s*(Home|Menu|Navigation|首页|菜单|导航)\s*[\|»>]\s*.*$',
+        
+        # Copyright and legal
+        r'^\s*Copyright © \d{4}.*$',
+        r'^\s*版权所有.*$',
+        r'^\s*All Rights Reserved.*$',
+        r'^\s*备案号.*ICP.*$',
+        
+        # Comments and social sections
+        r'^\s*\d+ (comments|评论)$',
+        r'^\s*(Share|Tweet|Like|分享).*$',
+        
+        # Search and form elements
+        r'^\s*(Search|搜索).*$',
+        r'^\s*(Username|Password|用户名|密码).*$',
+        r'^\s*(Login|Register|登录|注册).*$',
+        
+        # Navigation for test questions
+        r'^\s*(上一题|下一题|previous|next).*$',
+        r'^\s*点击.*查看答案.*$',
+        r'^\s*目录.*$',
+        
+        # Various UI elements
+        r'.*\[\s*\d+\s*\]$',  # Reference numbers
+        r'^[A-D][\s.、:：]+.*$',  # Multiple choice options
+        r'^\s*\d+[\s.、:：]+[A-D][\s.、:：]+.*$',  # Numbered question with answer
+        
+        # Exam/quiz related
+        r'^\s*(单项选择题|多项选择题|判断题).*$',  # Question types
+        r'^\s*(参考答案|正确答案|答案解析).*$',  # Answer indicators
+        r'^\s*\(答案[:：\s]+[A-D]\).*$',  # Answers in parentheses
+        
+        # Common website elements
+        r'^\s*(网站首页|网站导航|联系我们).*$',  # Chinese website navigation
+        r'^\s*在线考试题库网.*$',  # Online exam website
+        r'^\s*欢迎来到.*$'  # Welcome message
+    ]
+    
+    # Process line by line
+    lines = text.split('\n')
+    cleaned_lines = []
+    
+    line_count = 0
+    boilerplate_count = 0
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        is_boilerplate = False
+        for pattern in boilerplate_patterns:
+            if re.search(pattern, line, re.IGNORECASE):
+                is_boilerplate = True
+                boilerplate_count += 1
+                break
+        
+        if not is_boilerplate:
+            cleaned_lines.append(line)
+        
+        line_count += 1
+    
+    # If more than 50% of the content was boilerplate, be more aggressive in filtering
+    if line_count > 0 and boilerplate_count / line_count > 0.5:
+        # Apply more aggressive filtering for highly boilerplate content
+        return clean_high_boilerplate_content('\n'.join(cleaned_lines))
+    
+    return '\n'.join(cleaned_lines)
+
+def clean_high_boilerplate_content(text):
+    """
+    More aggressive cleaning for content with high percentage of boilerplate
+    
+    Args:
+        text: Text to clean
+        
+    Returns:
+        Cleaned text with higher quality
+    """
+    # Split into paragraphs
+    paragraphs = text.split('\n')
+    
+    # Keep only paragraphs that look like real content
+    content_paragraphs = []
+    
+    for p in paragraphs:
+        p = p.strip()
+        if not p:
+            continue
+            
+        # Skip very short paragraphs
+        if len(p) < 20:
+            continue
+            
+        # Skip navigation-like paragraphs
+        if re.search(r'^[^，。！？,.!?]{1,10}$', p):
+            continue
+            
+        # Skip list-like items that might be navigation
+        if re.match(r'^\s*[\-\*•◦]\s+\w+$', p):
+            continue
+            
+        # Skip single-word paragraphs
+        if len(p.split()) == 1:
+            continue
+            
+        content_paragraphs.append(p)
+    
+    # Return the cleaned text
+    return '\n'.join(content_paragraphs)
 
 # Define the wrapper function outside of batch_clean_files so it can be pickled
 def _clean_file_wrapper(args):

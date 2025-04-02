@@ -129,6 +129,9 @@ python text_cleaning.py input.txt --output cleaned.txt --deep
 
 # Clean all text files in a directory
 python text_cleaning.py ./data_dir --output ./clean_dir --batch --pattern "*.txt" --workers 4
+
+# Analyze content quality of a text file
+python content_quality.py input.txt --deep --language zh
 ```
 
 Options:
@@ -136,17 +139,60 @@ Options:
 - `--batch`: Process all files in a directory
 - `--pattern`: File pattern to match when cleaning in batch mode (default: *.txt)
 - `--workers`: Number of parallel workers for batch processing (default: CPU cores - 1)
+- `--language`: Specify language for content quality analysis (auto-detect by default)
 
 You can also use these cleaning functions programmatically:
 
 ```python
 from text_cleaning import clean_text, batch_clean_files
+from content_quality import ContentQualityAnalyzer, filter_low_quality_content
 
 # Clean a single file
 clean_text('input.txt', deep_clean=True, output_file='cleaned.txt')
 
 # Clean all files in a directory
 batch_clean_files('data_dir', deep_clean=True, output_dir='clean_dir')
+
+# Analyze content quality
+analyzer = ContentQualityAnalyzer()
+metrics = analyzer.analyze_text(text, deep_analysis=True)
+print(f"Quality score: {metrics['quality_score']}")
+
+# Filter out low-quality content
+high_quality_texts = filter_low_quality_content(text_list)
+```
+
+### Advanced Content Quality Analysis
+
+The project now features an enhanced content quality analysis system that can:
+
+1. Detect and filter out low-quality content like:
+   - Test/exam questions and answers
+   - Website boilerplate (navigation, footers, etc.)
+   - Login/registration forms
+   - Content with excessive HTML artifacts
+   - Machine-generated or highly repetitive text
+
+2. Perform language-specific cleaning for:
+   - English
+   - Chinese (中文)
+   - Japanese (日本語)
+   - Korean (한국어)
+   - And more
+
+3. Calculate quality scores based on various indicators:
+   - Lexical diversity
+   - Paragraph structure
+   - Boilerplate density
+   - HTML artifact presence
+   - Content repetition
+
+```bash
+# Analyze content quality with full report
+python content_quality.py large_dataset.txt --deep
+
+# Filter and clean a directory of text files
+python main.py --mode clean --input_dir raw_data --output_dir cleaned_data --analyze_quality --deep_clean
 ```
 
 ### Advanced Common Crawl Integration
@@ -206,6 +252,7 @@ Options specific to this workflow:
 - `visualize_network.py`: Neural network visualization
 - `load_textdata.py`: Functions for loading and processing text data
 - `text_cleaning.py`: Text cleaning utilities
+- `content_quality.py`: Content quality analysis and filtering
 - `dataset_bridge.py`: Bridge between dataset formats
 - `dataset_builder.py`: Utilities for building datasets
 - `gpu_utils.py`: Utilities for GPU benchmarking and hardware optimization

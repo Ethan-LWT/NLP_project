@@ -315,6 +315,10 @@ def extract_text(warc_path, max_records=None, num_workers=None, batch_size=100, 
                     
                     # Filter out None results
                     valid_results = [r for r in batch_results if r is not None]
+                    
+                    # Apply enhanced content filtering to remove low quality content
+                    valid_results = filter_low_quality_content(valid_results)
+                    
                     extracted_texts.extend(valid_results)
                     
                     error_records += len(content_batch) - len(valid_results)
@@ -341,6 +345,10 @@ def extract_text(warc_path, max_records=None, num_workers=None, batch_size=100, 
         
         # Filter out None results
         valid_results = [r for r in batch_results if r is not None]
+        
+        # Apply enhanced content filtering
+        valid_results = filter_low_quality_content(valid_results)
+        
         extracted_texts.extend(valid_results)
         
         error_records += len(content_batch) - len(valid_results)
@@ -350,6 +358,258 @@ def extract_text(warc_path, max_records=None, num_workers=None, batch_size=100, 
     print(f"Encountered {error_records} errors/skipped records during processing")
     
     return extracted_texts
+
+def filter_low_quality_content(texts):
+    """
+    Filter out low-quality text content such as website boilerplate, navigation elements,
+    search forms, and other non-content areas across multiple languages.
+    
+    Args:
+        texts: List of extracted text strings
+        
+    Returns:
+        List of filtered text strings with improved quality
+    """
+    # First try to import the specialized content quality module
+    try:
+        from content_quality import filter_low_quality_content as advanced_filter
+        # If available, use the advanced filtering
+        return advanced_filter(texts)
+    except ImportError:
+        # If not available, use the built-in filtering
+        pass
+    
+    filtered_texts = []
+    
+    # Multilingual patterns for problematic content
+    # Format: [pattern, is_strong_indicator]
+    boilerplate_patterns = [
+        # Universal patterns (work across languages)
+        [r'copyright|©|\(c\)', True],
+        [r'all\s*rights\s*reserved', True],
+        [r'powered\s*by', False],
+        [r'privacy\s*policy|cookie\s*policy', False],
+        [r'terms\s*(of|and)\s*(service|use)', False],
+        
+        # English-specific
+        [r'sign\s*(in|up)|log\s*in|register', False],
+        [r'subscribe|newsletter', False],
+        [r'contact\s*us|about\s*us', False],
+        [r'share\s*this|follow\s*us', False],
+        
+        # Chinese-specific
+        [r'备案号|ICP', True],
+        [r'版权所有|保留所有权利', True],
+        [r'登录|注册|用户名|密码', False],
+        [r'关于我们|联系我们|网站地图', False],
+        [r'首页|主页|顶部|底部', False],
+        [r'欢迎来到|关注我们|分享', False],
+        [r'点击查看|在线考试|题库', True],
+        
+        # Japanese-specific
+        [r'著作権|無断転載|禁止|利用規約', True],
+        [r'プライバシー|ポリシー|お問い合わせ', False],
+        [r'ログイン|新規登録|パスワード', False],
+        
+        # Russian-specific
+        [r'авторские права|все права защищены', True],
+        [r'вход|регистрация|пароль', False],
+        
+        # Spanish/Portuguese-specific
+        [r'derechos\s*reservados|direitos\s*reservados', True],
+        [r'iniciar\s*sesión|registrarse|contraseña', False],
+        
+        # Arabic-specific
+        [r'جميع الحقوق محفوظة|حقوق النشر', True],
+        [r'تسجيل الدخول|اشتراك|كلمة المرور', False],
+        
+        # Generic UI elements (numbers/patterns that appear across languages)
+        [r'\d+\s*\/\s*\d+', False],  # Pagination like 1/10
+        [r'<<\s*\d+\s*>>', False],   # Navigation controls
+        [r'\[\s*\d+\s*\]', False]    # Reference numbers
+    ]
+    
+    # Exam/educational content patterns across languages
+    exam_patterns = {
+        # Universal patterns
+        'universal': [
+            r'\(?[A-D]\)?[\s.)\]]+',  # Multiple choice options like A), B., C], etc.
+            r'\d+[\s.)\]]+\(?[A-D]\)?',  # Numbered questions with answers like "1. A)"
+        ],
+        
+        # English exam patterns
+        'english': [
+            r'multiple[\s-]choice',
+            r'true\s*or\s*false',
+            r'fill[\s-]in[\s-]the[\s-]blank',
+            r'answer\s*key|correct\s*answer',
+            r'quiz|exam|test\s*question',
+            r'choose\s*the\s*(best|correct)\s*answer',
+        ],
+        
+        # Chinese exam patterns
+        'chinese': [
+            r'单项选择题|多项选择题', 
+            r'判断题|填空题',
+            r'正确答案|参考答案|答案解析',
+            r'在线考试|题库|试题|考题'
+        ],
+        
+        # Japanese exam patterns
+        'japanese': [
+            r'選択問題|記述問題',
+            r'正しい答え|解答'
+        ],
+        
+        # Spanish exam patterns
+        'spanish': [
+            r'selección\s*múltiple',
+            r'verdadero\s*o\s*falso',
+            r'respuesta\s*correcta'
+        ]
+    }
+    
+    # HTML and formatting remnants (language-independent)
+    html_patterns = [
+        r'</?[a-z]+[^>]*>',
+        r'&[a-z]+;',
+        r'\{\{[^}]+\}\}',  # Template variables
+        r'\[\[(?:[^]]+\|)?([^]]+)\]\]'  # Wiki-style links
+    ]
+    
+    for text in texts:
+        if not text:
+            continue
+            
+        # Skip if text is too short
+        if len(text) < 50:
+            continue
+        
+        # Check for language indicators to apply appropriate filters
+        lang_indicators = {
+            'chinese': len(re.findall(r'[\u4e00-\u9fff]', text[:1000])),
+            'japanese': len(re.findall(r'[\u3040-\u30ff]', text[:1000])),
+            'korean': len(re.findall(r'[\uac00-\ud7a3]', text[:1000])),
+            'arabic': len(re.findall(r'[\u0600-\u06ff]', text[:1000])),
+            'cyrillic': len(re.findall(r'[\u0400-\u04FF]', text[:1000])),
+        }
+        
+        # Determine primary language
+        primary_lang = 'english'  # Default
+        max_indicators = 10  # Minimum threshold to determine a non-Latin script
+        
+        for lang, count in lang_indicators.items():
+            if count > max_indicators:
+                primary_lang = lang
+                max_indicators = count
+        
+        # Check for exam/educational content based on language
+        is_exam_content = False
+        
+        # Check universal exam patterns
+        exam_matches = 0
+        for pattern in exam_patterns['universal']:
+            matches = len(re.findall(pattern, text, re.IGNORECASE | re.MULTILINE))
+            if matches >= 3:  # Multiple occurrences indicate exam content
+                is_exam_content = True
+                break
+            exam_matches += matches
+        
+        # Check language-specific exam patterns
+        if primary_lang in exam_patterns and not is_exam_content:
+            lang_specific_matches = 0
+            for pattern in exam_patterns[primary_lang]:
+                if re.search(pattern, text, re.IGNORECASE):
+                    lang_specific_matches += 1
+                    if lang_specific_matches >= 2:
+                        is_exam_content = True
+                        break
+        
+        # English fallback for non-matched languages
+        if primary_lang not in exam_patterns and not is_exam_content:
+            lang_specific_matches = 0
+            for pattern in exam_patterns['english']:
+                if re.search(pattern, text, re.IGNORECASE):
+                    lang_specific_matches += 1
+                    if lang_specific_matches >= 2:
+                        is_exam_content = True
+                        break
+        
+        # Skip exam/educational content
+        if is_exam_content or exam_matches >= 10:
+            continue
+        
+        # Check for boilerplate content
+        has_strong_boilerplate = False
+        boilerplate_count = 0
+        
+        for pattern, is_strong in boilerplate_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                if is_strong:
+                    has_strong_boilerplate = True
+                    break
+                boilerplate_count += 1
+                
+                if boilerplate_count >= 4:  # Multiple weak indicators become a strong signal
+                    has_strong_boilerplate = True
+                    break
+        
+        if has_strong_boilerplate:
+            continue
+        
+        # Check for content quality via text diversity
+        words = re.findall(r'\b\w+\b', text.lower())
+        if len(words) > 30:  # Only check if we have enough words
+            word_set = set(words)
+            unique_ratio = len(word_set) / len(words)
+            # Very low ratio means extremely repetitive content
+            if unique_ratio < 0.2:  # Less than 20% unique words
+                continue
+        
+        # Remove HTML and formatting remnants
+        for pattern in html_patterns:
+            text = re.sub(pattern, ' ', text)
+        
+        # Clean up boilerplate at line level
+        lines = text.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Skip lines with high concentration of special characters
+            special_char_count = sum(1 for c in line if not c.isalnum() and not c.isspace())
+            if len(line) > 0 and special_char_count / len(line) > 0.3:
+                continue
+                
+            # Skip common UI elements based on pattern
+            is_ui_element = False
+            for pattern, _ in boilerplate_patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    is_ui_element = True
+                    break
+                    
+            if not is_ui_element:
+                cleaned_lines.append(line)
+        
+        # Skip if too many lines were removed (likely a web page with little content)
+        if len(cleaned_lines) < 3:
+            continue
+        
+        cleaned_text = '\n'.join(cleaned_lines)
+        
+        # Normalize whitespace
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        
+        # Skip if the cleaned text is too short
+        if len(cleaned_text) < 50:
+            continue
+            
+        filtered_texts.append(cleaned_text)
+    
+    return filtered_texts
 
 def process_warc(warc_path, output_dir, max_records=None, num_workers=None, batch_size=100, filter_topics=None, filter_domains=None):
     """
